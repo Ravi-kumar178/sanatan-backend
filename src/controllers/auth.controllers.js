@@ -3,6 +3,8 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { sendMail } from "../utils/send-mail.js";
 import { verificationMail } from "../services/email.js";
+import Crypto from "crypto";
+import { ApiError } from "../utils/api-error.js";
 
 const generateAccessandRefreshTokens = async (userId) => {
   try {
@@ -131,8 +133,172 @@ const googleLoginSuccess = asyncHandler(async (req, res) => {
     );
 });
 
-const logoutUser = asyncHandler(async (req,res) => {
-  
+const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        refreshToken: "",
+      },
+    },
+    {
+      new: true,
+    },
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
 
-export { registerUser, googleLoginSuccess, loginUser };
+const verifyEmail = asyncHandler(async (req, res) => {
+  const { verificationToken } = req.params;
+  if (!verificationToken) {
+    throw new ApiError(400, "Verification token is required");
+  }
+  const hashedToken = Crypto.createHash("sha256")
+    .update(verificationToken)
+    .digest("hex");
+  const user = await User.findOne({
+    emailVerificationToken: hashedToken,
+    emailVerificationTokenExpiry: { $gt: Date.now() },
+  });
+  if (!user) {
+    throw new ApiError(401, "Invalid verification token");
+  }
+  user.isEmailVerified = true;
+  user.emailVerificationToken = undefined;
+  user.emailVerificationTokenExpiry = undefined;
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Email verified successfully"));
+});
+
+const resendEmailVerification = asyncHandler(async (req, res) => {
+  const user = req.user;
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  if (user.isEmailVerified) {
+    throw new ApiError(400, "Email already verified");
+  }
+  const { unHashedToken, hashedToken, tokenExpiry } =
+    user.generateTemporaryToken();
+
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationTokenExpiry = tokenExpiry;
+  await user.save({ validateBeforeSave: false });
+  await sendMail({
+    email: user.email,
+    subject: "Sanatan International - Email Verification Mail",
+    mail: verificationMail(
+      user.userName,
+      `${process.env.FRONTEND_URL}/api/v1/verify-email/${unHashedToken}`,
+    ),
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Email verification mail sent"));
+});
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select(
+    "-password -oauthProvider -emailVerificationToken -emailVerificationTokenExpiry -forgotPasswordToken -forgotPasswordTokenExpiry -refreshToken",
+  );
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { user: user }, "User fetched successfully"));
+});
+
+const updateCurrentUser = asyncHandler(async (req, res) => {
+  const { username, fullname } = req.body;
+
+  if (!username || !fullname) {
+    throw new ApiError(400, "At least one field is required");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        userName: username,
+        fullName: fullname,
+      },
+    },
+    { new: true, runValidators: true },
+  ).select(
+    "-password -oauthProvider -emailVerificationToken -emailVerificationTokenExpiry -forgotPasswordToken -forgotPasswordTokenExpiry -refreshToken",
+  );
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { updatedUser: user },
+        "Profile updated successfully",
+      ),
+    );
+});
+
+const deleteCurrentUser = asyncHandler(async (req, res) => {
+  const user = await User.findByIdAndDelete(req.user._id);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "Profile deleted successfully"));
+});
+
+const changeUserPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  const user = req.user;
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  const isPasswordValid = await user.comparePassword(oldPassword);
+  if (!isPasswordValid) {
+    throw new ApiError(400, "Invalid Password");
+  }
+  user.password = newPassword;
+  await user.save();
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password updated successfully"));
+});
+
+export {
+  registerUser,
+  googleLoginSuccess,
+  loginUser,
+  logoutUser,
+  verifyEmail,
+  resendEmailVerification,
+  getCurrentUser,
+  updateCurrentUser,
+  deleteCurrentUser,
+  changeUserPassword,
+};
