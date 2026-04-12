@@ -1,36 +1,93 @@
-import {User} from "../models/user.models.js";
-import {asyncHandler} from "../utils/async-handler.js";
-import {ApiResponse} from "../utils/api-response.js"
+import { User } from "../models/user.models.js";
+import { asyncHandler } from "../utils/async-handler.js";
+import { ApiResponse } from "../utils/api-response.js";
+import sendMail from "../utils/send-mail.js";
+import { verificationMail } from "../services/email.js";
 
-const registerUser = asyncHandler(async(req, res) => {
-    const {email,body} = req.body;
+const generateAccessandRefreshTokens = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(500, "Failed to generate tokens", []);
+  }
+};
+
+const registerUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    throw new ApiError(400, "Email and password are required");
+  }
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new ApiError(400, "User with this email already exists");
+  }
+  const user = await User.create({ email, password });
+  const { unHashedToken, hashedToken, tokenExpiry } = user.generateTemporaryToken();
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationTokenExpiry = tokenExpiry;
+  await user.save({ validateBeforeSave: false });
+  // send verification email
+  await sendMail({
+    email: user.email,
+    subject: "Verify your email for Sanatan International",
+    html: verificationMail(
+      user.userName,
+      `${process.env.FRONTEND_URL}/api/v1/verify-email/${unHashedToken}`,
+    ),
+  });
+
+  const createdUser = await User.findOne({ email }).select(
+    "-password -refreshToken -emailVerificationExpiry -emailVerificationToken -forgotPasswordExpiry -forgotPasswordToken",
+  );
+
+  return res.status(201).json(
+    new ApiResponse(201, createdUser , "User registered successfully")
+  );
 });
 
 const googleLoginSuccess = asyncHandler(async (req, res) => {
-   const user = req.user;
+  const user = req.user;
 
-   if (!user) {
-      throw new ApiError(401, "Google authentication failed");
-   }
+  if (!user) {
+    throw new ApiError(401, "Google authentication failed");
+  }
 
-   const accessToken = user.generateAccessToken();
-   const refreshToken = user.generateRefreshToken();
+  const { accessToken, refreshToken } = await generateAccessandRefreshTokens(
+    user._id,
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
 
-   user.refreshToken = refreshToken;
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshToken -emailVerificationExpiry -emailVerificationToken -forgotPasswordExpiry -forgotPasswordToken",
+  );
 
-   await user.save({ validateBeforeSave: false });
-
-   return res.status(200).json(
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
       new ApiResponse(
-         200,
-         {
-            user,
-            accessToken,
-            refreshToken,
-         },
-         "Google login successful"
-      )
-   );
+        200,
+        {
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        },
+        "Google login successfull",
+      ),
+    );
 });
 
-export {registerUser, googleLoginSuccess};
+export { registerUser, googleLoginSuccess };

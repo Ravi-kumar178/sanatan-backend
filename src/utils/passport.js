@@ -5,6 +5,8 @@ dotenv.config({
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { User } from "../models/user.models.js";
+import { onBoardingMail } from "../services/email.js";
+import { sendMail } from "./send-mail.js";
 
 passport.use(
   new GoogleStrategy(
@@ -27,6 +29,11 @@ passport.use(
             oauthProvider: "google",
             isEmailVerified: true,
           });
+          await sendMail({
+            html: onBoardingMail(fullName),
+            email,
+            subject: "Welcome to Sanatan International!"
+          });
         }
         return done(null, user);
       } catch (error) {
@@ -35,7 +42,5 @@ passport.use(
     },
   ),
 );
-
-
 
 export default passport;
