@@ -7,13 +7,18 @@ import {
   googleLoginSuccess,
   loginUser,
   logoutUser,
+  refreshAccessToken,
   registerUser,
+  requestPasswordReset,
   resendEmailVerification,
+  resetPassword,
   updateCurrentUser,
   verifyEmail,
 } from "../controllers/auth.controllers.js";
 import {
   changePasswordValidator,
+  forgotPasswordValidator,
+  passwordResetValidator,
   userRegisteredValidator,
 } from "../validators/index.js";
 import { validate } from "../middlewares/validator.middlewares.js";
@@ -43,6 +48,15 @@ router
 
 router.route("/login").post(userRegisteredValidator(), validate, loginUser);
 router.route("/verify-email/:verificationToken").get(verifyEmail);
+router
+  .route("/forgot-password")
+  .post(forgotPasswordValidator(), validate, requestPasswordReset);
+
+router
+  .route("/reset-password/:resetToken")
+  .post(passwordResetValidator(), validate, resetPassword);
+
+router.route("/refresh-token").post(refreshAccessToken);
 
 //secured
 router.route("/logout").post(verifyJWT, logoutUser);

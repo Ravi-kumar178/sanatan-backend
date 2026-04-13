@@ -172,5 +172,106 @@ const verificationMail = (username, verificationUrl) => {
   `;
 }
 
-export { onBoardingMail, verificationMail };
+const forgotPasswordMail = (username, resetUrl) => {
+return `
+ <!DOCTYPE html>
+
+  <html>
+        <head>
+          <meta charset="UTF-8" />
+          <title>Reset Password</title>
+        </head>
+        <body style="margin:0; padding:0; background-color:#f4f6f8; font-family: Arial, sans-serif;">
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="padding: 20px 0;">
+        <tr>
+          <td align="center">
+
+            <!-- Container -->
+            <table width="600" cellpadding="0" cellspacing="0" 
+              style="background:#ffffff; border-radius:10px; padding:30px;">
+
+              <!-- Header -->
+              <tr>
+                <td align="center" style="padding-bottom:20px;">
+                  <h2 style="margin:0; color:#333;">Reset Your Password</h2>
+                </td>
+              </tr>
+
+              <!-- Greeting -->
+              <tr>
+                <td style="font-size:16px; color:#333; padding-bottom:15px;">
+                  Hi <strong>${username}</strong>,
+                </td>
+              </tr>
+
+              <!-- Intro -->
+              <tr>
+                <td style="font-size:15px; color:#555; padding-bottom:20px;">
+                  We received a request to reset your password. No worries — it happens!
+                </td>
+              </tr>
+
+              <!-- Instructions -->
+              <tr>
+                <td style="font-size:15px; color:#555; padding-bottom:25px;">
+                  Click the button below to reset your password. If you did not request this, you can safely ignore this email.
+                </td>
+              </tr>
+
+              <!-- Button -->
+              <tr>
+                <td align="center" style="padding-bottom:30px;">
+                  <a href="${resetUrl}" 
+                    style="
+                      background-color:#4F46E5;
+                      color:#ffffff;
+                      padding:12px 25px;
+                      text-decoration:none;
+                      border-radius:5px;
+                      font-size:14px;
+                      display:inline-block;
+                      font-weight:bold;
+                    ">
+                    Reset Password
+                  </a>
+                </td>
+              </tr>
+
+              <!-- Expiry Note -->
+              <tr>
+                <td style="font-size:14px; color:#777; padding-bottom:20px;">
+                  This password reset link is valid for a limited time. For your security, do not share this link with anyone.
+                </td>
+              </tr>
+
+              <!-- Help -->
+              <tr>
+                <td style="font-size:14px; color:#777; padding-bottom:20px;">
+                  If you did not request a password reset, you can ignore this email or contact our support team.
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="font-size:12px; color:#aaa; text-align:center;">
+                  © ${new Date().getFullYear()} Task Manager. All rights reserved.
+                </td>
+              </tr>
+
+            </table>
+
+          </td>
+        </tr>
+      </table>
+
+    </body>
+
+
+  </html>
+  `;
+};
+
+
+export { onBoardingMail, verificationMail , forgotPasswordMail};
   

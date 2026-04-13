@@ -2,9 +2,10 @@ import { User } from "../models/user.models.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { sendMail } from "../utils/send-mail.js";
-import { verificationMail } from "../services/email.js";
+import { forgotPasswordMail, verificationMail } from "../services/email.js";
 import Crypto from "crypto";
 import { ApiError } from "../utils/api-error.js";
+import jwt from "jsonwebtoken";
 
 const generateAccessandRefreshTokens = async (userId) => {
   try {
@@ -290,6 +291,105 @@ const changeUserPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password updated successfully"));
 });
 
+const requestPasswordReset = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  const { unHashedToken, hashedToken, tokenExpiry } =
+    user.generateTemporaryToken();
+  user.forgotPasswordToken = hashedToken;
+  user.forgotPasswordTokenExpiry = tokenExpiry;
+  await user.save({ validateBeforeSave: false });
+
+  await sendMail({
+    to: email,
+    subject: "Reset your password",
+    html: forgotPasswordMail(
+      user.userName,
+      `${process.env.FRONTEND_URL}/api/v1/reset-password/${unHashedToken}`,
+    ),
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Forgot password mail has been sent"));
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { resetToken } = req.params;
+  const { password } = req.body;
+
+  if (!resetToken) {
+    throw new ApiError(400, "Reset token is required");
+  }
+
+  const hashedToken = Crypto.createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  const user = await User.findOne({
+    forgotPasswordToken: hashedToken,
+    forgotPasswordTokenExpiry: { $gt: Date.now() },
+  });
+  if (!user) {
+    throw new ApiError(401, "Invalid forgot password token");
+  }
+  user.password = password;
+  await user.save({ validateBeforeSave: false });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password reset successfully"));
+});
+
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+  if (!incomingRefreshToken) {
+    throw new ApiError(404, "Refresh token not found");
+  }
+
+  try {
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+    );
+    const user = await User.findById(decodedToken._id);
+    if (!user) {
+      throw new ApiError(401, "Invalid Refresh Token");
+    }
+    if (incomingRefreshToken != user.refreshToken) {
+      throw new ApiError(401, "Refresh Token Expired");
+    }
+
+    const { accessToken, refreshToken } = await generateAccessandRefreshTokens(
+      user._id,
+    );
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    return res
+      .status(200)
+      .cookie("refreshToken", refreshToken, options)
+      .cookie("accessToken", accessToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          {
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+          },
+          "Access token refreshed successfully",
+        ),
+      );
+  } catch (error) {
+    throw new ApiError(401, "unauthorized access");
+  }
+});
+
 export {
   registerUser,
   googleLoginSuccess,
@@ -301,4 +401,7 @@ export {
   updateCurrentUser,
   deleteCurrentUser,
   changeUserPassword,
+  requestPasswordReset,
+  resetPassword,
+  refreshAccessToken
 };
