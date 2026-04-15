@@ -14,8 +14,10 @@ import {
   resetPassword,
   updateCurrentUser,
   verifyEmail,
+  postAdminRequest,
 } from "../controllers/auth.controllers.js";
 import {
+  adminRequestValidator,
   changePasswordValidator,
   forgotPasswordValidator,
   passwordResetValidator,
@@ -73,5 +75,9 @@ router
 router
   .route("/change-password")
   .post(changePasswordValidator(), validate, verifyJWT, changeUserPassword);
+
+router
+  .route("/admin-request")
+  .post(adminRequestValidator(), validate, verifyJWT, postAdminRequest);
 
 export default router;

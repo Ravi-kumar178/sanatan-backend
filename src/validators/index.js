@@ -1,4 +1,5 @@
 import { body, param } from "express-validator";
+import { AvailableAdminRolesEnum } from "../utils/constant.js";
 
 const userRegisteredValidator = () => {
   return [
@@ -63,9 +64,21 @@ const passwordResetValidator = () => {
   ];
 };
 
+const adminRequestValidator = () => {
+  return [
+    body("role")
+    .trim()
+    .notEmpty()
+    .withMessage("Role is required")
+    .isIn(AvailableAdminRolesEnum)
+    .withMessage("You can select only from the given admin roles"),
+  ];
+};
+
 export {
   userRegisteredValidator,
   changePasswordValidator,
   forgotPasswordValidator,
-  passwordResetValidator
+  passwordResetValidator,
+  adminRequestValidator
 };

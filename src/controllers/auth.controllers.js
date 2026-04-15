@@ -1,4 +1,5 @@
 import { User } from "../models/user.models.js";
+import { AdminRequest } from "../models/adminRequest.models.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { sendMail } from "../utils/send-mail.js";
@@ -344,7 +345,8 @@ const resetPassword = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+  const incomingRefreshToken =
+    req.cookies?.refreshToken || req.body?.refreshToken;
   if (!incomingRefreshToken) {
     throw new ApiError(404, "Refresh token not found");
   }
@@ -390,6 +392,25 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
+const postAdminRequest = asyncHandler(async (req, res) => {
+  const { role } = req.body;
+
+  const adminRequest = await AdminRequest.create({
+    user: req.user._id,
+    requestedRole: role
+  });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        {username:req.user.userName,email: req.user.email, adminRequest},
+        "Your request is posted successfully",
+      ),
+    );
+});
+
 export {
   registerUser,
   googleLoginSuccess,
@@ -403,5 +424,6 @@ export {
   changeUserPassword,
   requestPasswordReset,
   resetPassword,
-  refreshAccessToken
+  refreshAccessToken,
+  postAdminRequest
 };
