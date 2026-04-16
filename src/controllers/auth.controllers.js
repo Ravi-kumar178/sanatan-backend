@@ -7,6 +7,10 @@ import { forgotPasswordMail, verificationMail } from "../services/email.js";
 import Crypto from "crypto";
 import { ApiError } from "../utils/api-error.js";
 import jwt from "jsonwebtoken";
+import {
+  AvailableAdminRolesEnum,
+  AvailableAdminRolesRequestStatusEnum,
+} from "../utils/constant.js";
 
 const generateAccessandRefreshTokens = async (userId) => {
   try {
@@ -395,9 +399,22 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 const postAdminRequest = asyncHandler(async (req, res) => {
   const { role } = req.body;
 
+  if (!AvailableAdminRolesEnum.includes(role)) {
+    throw new ApiError(400, "Invalid role");
+  }
+
+  const existingRequest = await AdminRequest.findOne({
+    user: req.user._id,
+    status: "pending",
+  });
+
+  if (existingRequest) {
+    throw new ApiError(400, "You already have a pending request");
+  }
+
   const adminRequest = await AdminRequest.create({
     user: req.user._id,
-    requestedRole: role
+    requestedRole: role,
   });
 
   return res
@@ -405,10 +422,88 @@ const postAdminRequest = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        {username:req.user.userName,email: req.user.email, adminRequest},
+        { username: req.user.userName, email: req.user.email, adminRequest },
         "Your request is posted successfully",
       ),
     );
+});
+
+const fetchAdminRequest = asyncHandler(async (req, res) => {
+  if (req.user?.role != "super_admin") {
+    throw new ApiError(400, "Admin request is fetched only by super admin");
+  }
+  const adminRequest = await AdminRequest.find().sort({ createdAt: -1 });
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, adminRequest, "Admin request fetched successfully"),
+    );
+});
+
+const updateAdminRequest = asyncHandler(async (req, res) => {
+  const adminRequestId = req.params.adminRequestId;
+  const { status } = req.body;
+  if (!AvailableAdminRolesRequestStatusEnum.includes(status)) {
+    throw new ApiError(400, `${status} is not allowed`);
+  }
+  const updatedRequest = await AdminRequest.findByIdAndUpdate(
+    adminRequestId,
+    {
+      $set: {
+        status: status,
+      },
+    },
+    {
+      new: true,
+    },
+  );
+  if (!updatedRequest) {
+    throw new ApiError(404, "Admin request not found");
+  }
+  if (status == "accepted") {
+    const updatedUser = await User.findByIdAndUpdate(
+      updatedRequest.user,
+      {
+        $set: {
+          role: updatedRequest.requestedRole,
+        },
+      },
+      {
+        new: true,
+      },
+    );
+  }
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        {},
+        `role is updated to ${updatedRequest.requestedRole}`,
+      ),
+    );
+});
+
+const deleteAdminRequest = asyncHandler(async (req, res) => {
+  const { adminRequestId } = req.params;
+  const adminRequest = await AdminRequest.findByIdAndDelete(adminRequestId);
+  if (!adminRequest) {
+    throw new ApiError(404, `Admin not found`);
+  }
+  const updatedUser = await User.findByIdAndUpdate(
+    adminRequest.user,
+    {
+      $set: {
+        role: "user",
+      },
+    },
+    {
+      new: true,
+    },
+  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, `${adminRequest.requestedRole} is removed`));
 });
 
 export {
@@ -425,5 +520,8 @@ export {
   requestPasswordReset,
   resetPassword,
   refreshAccessToken,
-  postAdminRequest
+  postAdminRequest,
+  fetchAdminRequest,
+  updateAdminRequest,
+  deleteAdminRequest,
 };

@@ -15,6 +15,9 @@ import {
   updateCurrentUser,
   verifyEmail,
   postAdminRequest,
+  fetchAdminRequest,
+  updateAdminRequest,
+  deleteAdminRequest,
 } from "../controllers/auth.controllers.js";
 import {
   adminRequestValidator,
@@ -24,7 +27,11 @@ import {
   userRegisteredValidator,
 } from "../validators/index.js";
 import { validate } from "../middlewares/validator.middlewares.js";
-import { verifyJWT } from "../middlewares/auth.middlewares.js";
+import {
+  validateUserPermission,
+  verifyJWT,
+} from "../middlewares/auth.middlewares.js";
+import { UserRolesEnum } from "../utils/constant.js";
 
 const router = Router();
 
@@ -78,6 +85,23 @@ router
 
 router
   .route("/admin-request")
-  .post(adminRequestValidator(), validate, verifyJWT, postAdminRequest);
+  .post(adminRequestValidator(), validate, verifyJWT, postAdminRequest)
+  .get(
+    verifyJWT,
+    validateUserPermission([UserRolesEnum.SUPER_ADMIN]),
+    fetchAdminRequest,
+  );
 
+router
+  .route("/admin-request/:adminRequestId")
+  .put(
+    verifyJWT,
+    validateUserPermission([UserRolesEnum.SUPER_ADMIN]),
+    updateAdminRequest,
+  )
+  .delete(
+    verifyJWT,
+    validateUserPermission([UserRolesEnum.SUPER_ADMIN]),
+    deleteAdminRequest,
+  );
 export default router;

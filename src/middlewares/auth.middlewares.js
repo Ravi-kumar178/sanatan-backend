@@ -23,4 +23,14 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
   }
 });
 
-export { verifyJWT };
+const validateUserPermission = (roles = []) => {
+  return asyncHandler((req, res, next) => {
+    const role = req.user?.role;
+    if (!roles.includes(role)) {
+      throw new ApiError(405, `${role} is not allowed`);
+    }
+    next();
+  });
+};
+
+export { verifyJWT, validateUserPermission };
