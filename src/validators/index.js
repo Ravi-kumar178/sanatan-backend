@@ -67,11 +67,24 @@ const passwordResetValidator = () => {
 const adminRequestValidator = () => {
   return [
     body("role")
-    .trim()
-    .notEmpty()
-    .withMessage("Role is required")
-    .isIn(AvailableAdminRolesEnum)
-    .withMessage("You can select only from the given admin roles"),
+      .trim()
+      .notEmpty()
+      .withMessage("Role is required")
+      .isIn(AvailableAdminRolesEnum)
+      .withMessage("You can select only from the given admin roles"),
+  ];
+};
+
+const createCourseValidator = () => {
+  return [
+    body("title").trim().notEmpty().withMessage("Course Title is required"),
+
+    body("label").trim().notEmpty().withMessage("Course Label is required"),
+    body("totalPrice")
+      .notEmpty()
+      .withMessage("Course -> Total price is required")
+      .isInt()
+      .withMessage("Total price must be integer"),
   ];
 };
 
@@ -80,5 +93,6 @@ export {
   changePasswordValidator,
   forgotPasswordValidator,
   passwordResetValidator,
-  adminRequestValidator
+  adminRequestValidator,
+  createCourseValidator
 };

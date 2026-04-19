@@ -56,7 +56,7 @@ const courseSchema = new Schema({
 {timestamps: true}
 );
 
-courseSchema.methods.calculatePayableAmount = function({totalPrice, discountPercent}){
+courseSchema.statics.calculatePayableAmount = function({totalPrice, discountPercent}){
     const discountAmount = (totalPrice * discountPercent) / 100;
     return Math.max(0, totalPrice - discountAmount);
 }
