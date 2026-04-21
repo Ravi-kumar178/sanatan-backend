@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express from "express";
 import passport from "../utils/passport.js";
 import {
   changeUserPassword,
@@ -33,7 +33,7 @@ import {
 } from "../middlewares/auth.middlewares.js";
 import { UserRolesEnum } from "../utils/constant.js";
 
-const router = Router();
+const router = express.Router();
 
 router.get(
   "/google",

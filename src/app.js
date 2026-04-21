@@ -31,9 +31,9 @@ app.get("/", (req, res) => {
 import healthCheckRouter from "./routes/healthcheck.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import courseRouter from "./routes/course.routes.js";
+import purchaseCourseRouter from "./routes/purchasedCourse.routes.js";
 app.use("/api/v1/healthcheck", healthCheckRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/courses", courseRouter);
-
-
+app.use("/api/v1/purchased",purchaseCourseRouter);
 export default app;

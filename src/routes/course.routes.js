@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express from "express";
 import {
   verifyJWT,
   validateUserPermission,
@@ -14,7 +14,7 @@ import {
 import { validate } from "../middlewares/validator.middlewares.js";
 import { createCourseValidator } from "../validators/index.js";
 
-const router = Router();
+const router = express.Router();
 
 router
   .route("/")

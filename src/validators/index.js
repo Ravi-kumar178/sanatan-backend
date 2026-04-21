@@ -1,5 +1,8 @@
 import { body, param } from "express-validator";
-import { AvailableAdminRolesEnum } from "../utils/constant.js";
+import {
+  AvailableAdminRolesEnum,
+  AvailableUserCourseStatus,
+} from "../utils/constant.js";
 
 const userRegisteredValidator = () => {
   return [
@@ -88,11 +91,31 @@ const createCourseValidator = () => {
   ];
 };
 
+const updatePurchasedCourseStatusValidator = () => {
+  return [
+    body("status")
+      .trim()
+      .notEmpty()
+      .withMessage("Status is required")
+      .isIn(AvailableUserCourseStatus)
+      .withMessage("Wrong status"),
+
+    param("userId")
+      .isMongoId()
+      .withMessage("Invalid user id"),
+
+    param("courseId")
+      .isMongoId()
+      .withMessage("Invalid course id"),
+  ];
+};
+
 export {
   userRegisteredValidator,
   changePasswordValidator,
   forgotPasswordValidator,
   passwordResetValidator,
   adminRequestValidator,
-  createCourseValidator
+  createCourseValidator,
+  updatePurchasedCourseStatusValidator
 };
