@@ -95,10 +95,12 @@ const updatePurchasedCourseStatusValidator = () => {
   return [
     body("status")
       .trim()
-      .notEmpty()
-      .withMessage("Status is required")
       .isIn(AvailableUserCourseStatus)
       .withMessage("Wrong status"),
+
+    body("validity")
+      .isDate()
+      .withMessage("validity should be date"),
 
     param("userId")
       .isMongoId()

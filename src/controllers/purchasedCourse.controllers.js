@@ -105,7 +105,7 @@ const getPurchasedCoursesOfUser = asyncHandler(async (req, res) => {
 });
 
 const updatePurchasedCourseStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body;
+  const { status, validity } = req.body;
   const { userId, courseId } = req.params;
 
   if (!AvailableUserCourseStatus.includes(status)) {
@@ -120,6 +120,7 @@ const updatePurchasedCourseStatus = asyncHandler(async (req, res) => {
     {
       $set: {
         status: status,
+        validTillDate: validity,
       },
     },
     {
@@ -142,8 +143,36 @@ const updatePurchasedCourseStatus = asyncHandler(async (req, res) => {
     );
 });
 
+const mostlyPurchasedCourse = asyncHandler(async (req, res) => {
+  const course = await PurchasedCourse.aggregate([
+    {
+      $group: {
+        _id: "$course",
+        totalPurchase: {
+          $sum: 1,
+        },
+      },
+    },
+    {
+      $sort: {
+        $totalPurchase: 1,
+      },
+    },
+  ]);
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        course,
+        "Mostly purchased course fetched successfully",
+      ),
+    );
+});
+
 export {
   getAllPurchasedCourse,
   getPurchasedCoursesOfUser,
   updatePurchasedCourseStatus,
+  mostlyPurchasedCourse
 };

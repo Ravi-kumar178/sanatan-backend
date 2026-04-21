@@ -7,6 +7,7 @@ import { UserRolesEnum } from "../utils/constant.js";
 import {
   getAllPurchasedCourse,
   getPurchasedCoursesOfUser,
+  mostlyPurchasedCourse,
   updatePurchasedCourseStatus,
 } from "../controllers/purchasedCourse.controllers.js";
 import { updatePurchasedCourseStatusValidator } from "../validators/index.js";
@@ -36,6 +37,16 @@ router
     updatePurchasedCourseStatusValidator(),
     validate,
     updatePurchasedCourseStatus,
+  );
+
+router
+  .route("/mostly-purchased-course")
+  .get(
+    validateUserPermission([
+      UserRolesEnum.SUPER_ADMIN,
+      UserRolesEnum.COURSE_ADMIN,
+    ]),
+    mostlyPurchasedCourse
   );
 
 export default router;
